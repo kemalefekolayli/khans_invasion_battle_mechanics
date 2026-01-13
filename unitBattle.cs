@@ -1,104 +1,107 @@
 using UnityEngine;
-using System;
+using System.Collections;
+
 public class unitBattle : MonoBehaviour
 {
-    private EnemyUnity enemy;
-    private General general;
+    private EnemyUnity currentEnemy;
+    private General currentGeneral;
+    private Coroutine battleCoroutine; 
 
-    private float enemyLosses;
-    private float generalLosses;
+    // Kaçıncı turda olduğumuzu saymak için
+    private int currentTurnCount = 0;
 
     void OnEnable()
     {
         GameEvent.OnColliderContactEnter += StartBattle;
-        GameEvent.OnInBattleTurn += BattleTurn;
+        GameEvent.OnColliderContactExit += StopBattle;
     }
 
     void OnDisable()
     {
         GameEvent.OnColliderContactEnter -= StartBattle;
-        GameEvent.OnInBattleTurn -= BattleTurn;
+        GameEvent.OnColliderContactExit -= StopBattle;
     }
 
     void StartBattle(EnemyUnity enemyUnity, General generalComponent)
     {
-        Debug.Log("Battle Started!");
-        enemy = enemyUnity;
-        general = generalComponent;
+        currentEnemy = enemyUnity;
+        currentGeneral = generalComponent;
+        currentTurnCount = 0; // Savaş başlayınca sayacı sıfırla
 
-        DecideBattle();
+        if (battleCoroutine != null) StopCoroutine(battleCoroutine);
+        battleCoroutine = StartCoroutine(BattleRoutine());
     }
-    void DecideBattle()
+
+    void StopBattle(EnemyUnity enemy, General general)
     {
-        if( enemy.armySize < 10 && general.armySize < 10)
+        if (battleCoroutine != null)
         {
-            if(RollDice() > 3)
-            {
-                GeneralWin();
-            } else
-            {
-                EnemyWin();
-            }
+            StopCoroutine(battleCoroutine);
+            battleCoroutine = null;
         }
-        else if ( enemy.armySize < 10 && general.armySize > 10 )
+    }
+
+    IEnumerator BattleRoutine()
+    {
+        while (currentEnemy.armySize > 10 && currentGeneral.armySize > 10)
         {
-            GeneralWin();
+            currentTurnCount++; // Turu arttır
+
+            // 1. Zarları BURADA atıyoruz ki değerleri görebilelim
+            int enemyRoll = RollDice();
+            int generalRoll = RollDice();
+
+            // 2. Saldırıyı yap (Zarları parametre olarak gönderiyoruz)
+            PerformAttack(enemyRoll, generalRoll);
+
+            // 3. Bekle
+            yield return new WaitForSeconds(1.0f); 
         }
-        else if ( enemy.armySize > 10 && general.armySize < 10)
+
+        if (currentEnemy.armySize <= 10) GeneralWin();
+        else EnemyWin();
+        
+        battleCoroutine = null;
+    }
+
+    // Artık zarları dışarıdan alıyor
+    void PerformAttack(int eRoll, int gRoll)
+    {
+        // Zarları UI'da göstermek için hesaplamayı burada yapıyoruz
+        float generalPower = currentGeneral.armySize * currentGeneral.armyStr * gRoll;
+        float enemyPower = currentEnemy.armySize * currentEnemy.armyStr * eRoll;
+
+        float enemyLosses = 0;
+        float generalLosses = 0;
+
+        if (generalPower > enemyPower)
         {
-            EnemyWin(); 
+            enemyLosses = currentEnemy.armySize * 0.3f;
+            generalLosses = currentGeneral.armySize * 0.1f;
+        }
+        else if (enemyPower > generalPower)
+        {
+            enemyLosses = currentEnemy.armySize * 0.1f;
+            generalLosses = currentGeneral.armySize * 0.3f;
         }
         else
         {
-            BattleTurn();
-        }
-    }
-
-    void BattleTurn(EnemyUnity enemyUnity, General generalComponent)
-    {
-        BattleTurn();
-        Debug.Log("Battle Turn Executed!");
-    }
-    void BattleTurn()
-    {
-        float generalPower = general.armySize * general.armyStr * RollDice();
-        float enemyPower = enemy.armySize * enemy.armyStr * RollDice();
-
-        if ( generalPower > enemyPower)
-        {
-            enemyLosses = enemy.armySize * 0.3f;
-            generalLosses = general.armySize * 0.1f;
-        }
-        else if ( enemyPower > generalPower)
-        {
-            enemyLosses = enemy.armySize * 0.1f;
-            generalLosses = general.armySize * 0.3f;
-        }
-        else
-        {
-            enemyLosses = enemy.armySize * 0.2f;
-            generalLosses = general.armySize * 0.2f;
+            enemyLosses = currentEnemy.armySize * 0.2f;
+            generalLosses = currentGeneral.armySize * 0.2f;
         }
 
-        enemy.armySize -= enemyLosses;
-        general.armySize -= generalLosses;
+        currentEnemy.armySize -= enemyLosses;
+        currentGeneral.armySize -= generalLosses;
 
-        GameEvent.InBattleTurn(enemy, general);
+        // GÜNCELLEME: Tüm detayları UI'ya gönderiyoruz
+        GameEvent.InBattleTurn(currentEnemy, currentGeneral, enemyLosses, generalLosses, eRoll, gRoll, currentTurnCount);
     }
 
     int RollDice()
     {
-    int zar = UnityEngine.Random.Range(1, 7);
-    return zar;
+        return UnityEngine.Random.Range(1, 7);
     }
 
-    void GeneralWin()
-    {
-        Debug.Log("General Wins the battle!");
-    }
-
-    void EnemyWin()
-    {
-        Debug.Log("Enemy Wins the battle!");
-    }
+    void GeneralWin() { Debug.Log("General Wins!"); }
+    void EnemyWin() { Debug.Log("Enemy Wins!"); }
 }

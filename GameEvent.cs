@@ -6,12 +6,11 @@ public class GameEvent : MonoBehaviour
     public static event Action<EnemyUnity, General> OnColliderContactEnter;
     public static event Action<EnemyUnity, General> OnColliderContactExit;
 
-    public static event Action<EnemyUnity, General> OnInBattleTurn;
+    public static event Action<EnemyUnity, General, float, float, int, int, int> OnInBattleTurn;
 
-    public static void InBattleTurn(EnemyUnity enemy, General general)
+    public static void InBattleTurn(EnemyUnity enemy, General general, float eLoss, float gLoss, int eRoll, int gRoll, int turn)
     {
-        Debug.Log("event fired for in battle turn");
-        OnInBattleTurn?.Invoke(enemy, general);
+        OnInBattleTurn?.Invoke(enemy, general, eLoss, gLoss, eRoll, gRoll, turn);
     }
     public static void ColliderContactEnter(EnemyUnity enemyUnity, General general)
     {

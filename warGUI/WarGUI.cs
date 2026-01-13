@@ -3,35 +3,23 @@ using TMPro;
 
 public class WarGUI : MonoBehaviour
 {
-    [SerializeField] TMPro.TextMeshProUGUI army1Size;
-    [SerializeField] TMPro.TextMeshProUGUI army2Size;
-    [SerializeField] TMPro.TextMeshProUGUI army1Str;
-    [SerializeField] TMPro.TextMeshProUGUI army2Str;
     [SerializeField] GameObject menuCanvasPrefab;
     private GameObject currentMenuInstance;
+    private WarMenuRefs currentMenuRefs; 
     public float menuOffset;
 
     void OnEnable()
     {
         GameEvent.OnColliderContactEnter += OpenMenu;
         GameEvent.OnColliderContactExit += CloseMenu;
-        GameEvent.OnInBattleTurn += assignTextValues;
+        GameEvent.OnInBattleTurn += UpdateValues; 
     }
 
     void OnDisable()
     {
         GameEvent.OnColliderContactEnter -= OpenMenu;
         GameEvent.OnColliderContactExit -= CloseMenu;
-        GameEvent.OnInBattleTurn -= assignTextValues;
-    }
-
-    void assignTextValues(EnemyUnity enemy, General general)
-    {
-        army1Size.text = enemy.armySize.ToString();
-        army2Size.text = general.armySize.ToString();
-    
-        army1Str.text = enemy.armyStr.ToString();
-        army2Str.text = general.armyStr.ToString();
+        GameEvent.OnInBattleTurn -= UpdateValues;
     }
 
     void OpenMenu(EnemyUnity enemy, General general)
@@ -39,24 +27,49 @@ public class WarGUI : MonoBehaviour
         if (currentMenuInstance == null)
         {
             currentMenuInstance = Instantiate(menuCanvasPrefab);
-
-            Vector3 enemyPos = enemy.transform.position;
-            Vector3 generalPos = general.transform.position;
-            Vector3 midPoint = (enemyPos + generalPos) / 2;
-            midPoint.y += menuOffset; 
+            
+            Vector3 midPoint = (enemy.transform.position + general.transform.position) / 2;
+            midPoint.y += menuOffset;
             currentMenuInstance.transform.position = midPoint;
-            currentMenuInstance.transform.position = new Vector3(midPoint.x, midPoint.y, 0);
-        }
 
+            currentMenuRefs = currentMenuInstance.GetComponent<WarMenuRefs>();
+            
+            // İlk açılışta her şey 0 gözüksün
+            UpdateValues(enemy, general, 0, 0, 0, 0, 0);
+        }
+    }
+
+    // Parametreleri Event'e uygun olarak güncelledik
+    void UpdateValues(EnemyUnity enemy, General general, float eLoss, float gLoss, int eRoll, int gRoll, int turn)
+    {
+        if (currentMenuRefs != null)
+        {
+            // Ordu Büyüklükleri (Mevcut)
+            currentMenuRefs.army1Size.text = enemy.armySize.ToString("F0");
+            currentMenuRefs.army2Size.text = general.armySize.ToString("F0");
+            currentMenuRefs.army1Str.text = enemy.armyStr.ToString();
+            currentMenuRefs.army2Str.text = general.armyStr.ToString();
+
+            // YENİLER: Kayıplar (Kırmızı renk güzel olur)
+            currentMenuRefs.army1Deaths.text = "-" + eLoss.ToString("F0");
+            currentMenuRefs.army2Deaths.text = "-" + gLoss.ToString("F0");
+
+            // YENİLER: Zarlar
+            currentMenuRefs.army1Dice.text = eRoll.ToString();
+            currentMenuRefs.army2Dice.text = gRoll.ToString();
+
+            // YENİLER: Tur Sayısı
+            currentMenuRefs.turnCount.text =  turn.ToString();
+        }
     }
 
     void CloseMenu(EnemyUnity enemy, General general)
     {
-
         if (currentMenuInstance != null)
         {
             Destroy(currentMenuInstance);
-            currentMenuInstance = null; 
+            currentMenuInstance = null;
+            currentMenuRefs = null;
         }
     }
 }
